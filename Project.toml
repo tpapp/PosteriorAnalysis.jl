@@ -1,0 +1,13 @@
+name = "PosteriorAnalysis"
+uuid = "7da3c4d0-530d-4d90-8eef-0f071d200699"
+authors = ["Tamás K. Papp <tkpapp@gmail.com>"]
+version = "0.1.0"
+
+[deps]
+ArgCheck = "dce04be8-c92d-5529-be00-80e4d2c0e197"
+DocStringExtensions = "ffbed154-4ef7-542d-bbb7-c09d3a79fcae"
+
+[compat]
+Argcheck = "2"
+DocStringExensions = "0.9"
+julia = "1.8"
