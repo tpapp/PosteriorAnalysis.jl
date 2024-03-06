@@ -21,6 +21,13 @@ end
         set_draw!(p, w, i)
         @test copy_draw(p, i) == view_draw(p, i) == w
     end
+
+    s = by_index(p)
+    @test size(s) == (M, )
+    @test eltype(s) <: AbstractVector{Float64}
+    for j in 1:M
+        @test s[j] == [view_draw(p, i)[j] for i in 1:N]
+    end
 end
 
 @testset "map_posterior (to array)" begin

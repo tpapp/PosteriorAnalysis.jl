@@ -1,9 +1,9 @@
 """
-Placeholder for a short summary about PosteriorAnalysis.
+FIXME Placeholder for a short summary about PosteriorAnalysis.
 """
 module PosteriorAnalysis
 
-export number_of_draws, copy_draw, view_draw, set_draw!,
+export number_of_draws, copy_draw, view_draw, set_draw!, by_index,
     posterior_last_axis, posterior_vector, map_posterior, collect_posterior
 
 using ArgCheck: @argcheck
@@ -93,6 +93,15 @@ copy_draw(p::PosteriorArray, i) = getindex(p.posterior, _array_posterior_inds(p,
 view_draw(p::PosteriorArray, i) = view(p.posterior, _array_posterior_inds(p, i)...)
 
 set_draw!(p::PosteriorArray, d, i) = setindex!(p.posterior, d, _array_posterior_inds(p, i)...)
+
+"""
+$(SIGNATURES)
+
+Return an array-like view into posterior draws by coordinate.
+"""
+function by_index(p::PosteriorArray{T,N}) where {T,N}
+    eachslice(p.posterior; dims = ntuple(identity, Val(N)), drop = true)
+end
 
 ####
 #### vectors without structure imposed
