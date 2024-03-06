@@ -10,6 +10,6 @@
 -->
 [![Aqua QA](https://raw.githubusercontent.com/JuliaTesting/Aqua.jl/master/badge.svg)](https://github.com/JuliaTesting/Aqua.jl)
 
-A simple Julia package to facilitate posterior analysis for Bayesian statistics.
+Julia package to facilitate posterior analysis for Bayesian statistics.
 
 **EXPERIMENTAL, API MAY CHANGE A LOT WITHOUT EXPLICIT DEPRECATION OR ANNOUNCEMENT.**
