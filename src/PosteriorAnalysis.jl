@@ -3,8 +3,9 @@ FIXME Placeholder for a short summary about PosteriorAnalysis.
 """
 module PosteriorAnalysis
 
-export number_of_draws, copy_draw, view_draw, set_draw!, by_index,
-    posterior_last_axis, posterior_vector, map_posterior, collect_posterior
+# NOTE we don't export anything, use public when Julia 1.11 comes out
+# public number_of_draws, copy_draw, view_draw, set_draw!, each_index
+#     posterior_last_axis, posterior_vector, map_posterior, collect_posterior
 
 using ArgCheck: @argcheck
 using Base: OneTo
@@ -92,14 +93,21 @@ copy_draw(p::PosteriorArray, i) = getindex(p.posterior, _array_posterior_inds(p,
 
 view_draw(p::PosteriorArray, i) = view(p.posterior, _array_posterior_inds(p, i)...)
 
-set_draw!(p::PosteriorArray, d, i) = setindex!(p.posterior, d, _array_posterior_inds(p, i)...)
+function set_draw!(p::PosteriorArray, d, i)
+    setindex!(p.posterior, d, _array_posterior_inds(p, i)...)
+end
+
+function each_draw(p::PosteriorArray)
+    (; posterior) = p
+    eachslice(posterior; dims = ndims(posterior), drop = true)
+end
 
 """
 $(SIGNATURES)
 
-Return an array-like view into posterior draws by coordinate.
+Return an array-like view into posterior draws by indices of the draws.
 """
-function by_index(p::PosteriorArray{T,N}) where {T,N}
+function each_index(p::PosteriorArray{T,N}) where {T,N}
     eachslice(p.posterior; dims = ntuple(identity, Val(N)), drop = true)
 end
 

@@ -1,3 +1,5 @@
+using PosteriorAnalysis: posterior_vector, set_draw!, copy_draw, view_draw,
+    posterior_last_axis, each_index, map_posterior, collect_posterior, number_of_draws
 using PosteriorAnalysis
 using Test
 
@@ -22,7 +24,7 @@ end
         @test copy_draw(p, i) == view_draw(p, i) == w
     end
 
-    s = by_index(p)
+    s = each_index(p)
     @test size(s) == (M, )
     @test eltype(s) <: AbstractVector{Float64}
     for j in 1:M
