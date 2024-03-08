@@ -1,5 +1,6 @@
 using PosteriorAnalysis: PosteriorArray, PosteriorVector, set_draw!, copy_draw,
-    view_draw, each_index, map_posterior, collect_posterior, number_of_draws
+    view_draw, each_index, map_posterior, collect_posterior, number_of_draws, each_draw,
+    is_posterior
 
 using PosteriorAnalysis
 using Test
@@ -79,12 +80,21 @@ end
     end
 end
 
-@testset "parent and stacking" begin
+@testset "each_draw, is_posterior, parent, and stacking" begin
     A = randn(4, 5, 6)
-    @test parent(PosteriorArray(A)) ≡ A
-    v = collect(eachslice(A; dims = 3))
-    @test parent(PosteriorVector(v)) ≡ v
-    @test parent(PosteriorArray(stack(v))) == A
+    pA = PosteriorArray(A)
+    @test is_posterior(pA)
+    @test parent(pA) ≡ A
+
+    V = collect(eachslice(A; dims = 3))
+    @test each_draw(pA) == V
+    pV = PosteriorVector(V)
+    @test is_posterior(pV)
+    @test parent(pV) ≡ V
+    @test parent(PosteriorArray(stack(V))) == A
+    @test each_draw(pV) == V
+
+    @test !is_posterior("a fish")
 end
 
 using JET

@@ -4,8 +4,8 @@ FIXME Placeholder for a short summary about PosteriorAnalysis.
 module PosteriorAnalysis
 
 using Compat: @compat
-@compat public PosteriorArray, PosteriorVector, set_draw!, copy_draw,
-    view_draw, each_index, map_posterior, collect_posterior, number_of_draws
+@compat public is_posterior, PosteriorArray, PosteriorVector, set_draw!, copy_draw,
+    view_draw, each_index, map_posterior, collect_posterior, number_of_draws, each_draw
 
 using ArgCheck: @argcheck
 using Base: OneTo
@@ -15,7 +15,27 @@ using DocStringExtensions: SIGNATURES
 #### generic code
 ####
 
+"""
+Supertype used for internal code organization only.
+"""
 abstract type Posterior{T} end
+
+"""
+$(SIGNATURES)
+
+Test if a type is a posterior, ie whether it supports the interface defined in this
+package, namely:
+
+- [`number_of_draws`](@ref), [`each_draw`](@ref)
+- [`copy_draw`](@ref), [`view_draw`](@ref), [`set_draw!`](@ref)
+- [`map_posterior`](@ref)
+
+See also [`each_index`](@ref), [`PosteriorArray`](@ref), [`PosteriorVector`](@ref),
+[`collect_posterior`](@ref).
+"""
+@inline is_posterior(::Type) = false
+@inline is_posterior(::Type{T}) where {T<:Posterior} = true
+@inline is_posterior(x::T) where T = is_posterior(T)
 
 """
 $(SIGNATURES)
@@ -151,6 +171,8 @@ struct PosteriorVector{T,V<:AbstractVector{T}} <: Posterior{T}
 end
 
 number_of_draws(p::PosteriorVector) = length(p.posterior)
+
+each_draw(p::PosteriorVector) = p.posterior
 
 copy_draw(p::PosteriorVector, i) = p.posterior[i]
 
