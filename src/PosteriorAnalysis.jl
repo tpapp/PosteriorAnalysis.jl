@@ -3,9 +3,9 @@ FIXME Placeholder for a short summary about PosteriorAnalysis.
 """
 module PosteriorAnalysis
 
-# NOTE we don't export anything, use public when Julia 1.11 comes out
-# public number_of_draws, copy_draw, view_draw, set_draw!, each_index
-#     posterior_last_axis, posterior_vector, map_posterior, collect_posterior
+using Compat: @compat
+@compat public PosteriorArray, PosteriorVector, set_draw!, copy_draw,
+    view_draw, each_index, map_posterior, collect_posterior, number_of_draws
 
 using ArgCheck: @argcheck
 using Base: OneTo
@@ -48,21 +48,36 @@ end
 
 struct PosteriorArray{T,N,A<:AbstractArray} <: Posterior{Array{T,N}}
     posterior::A
+    @doc """
+    $(SIGNATURES)
+
+    Make a collection of posterior draws from an array, where each draw is a slice
+    `[:, :, …, :, i]` of the argument for all indices `i` on the last axis, which needs to
+    be 1-based.
+
+    Posterior draws of arrays of the same size and type, stored in a compact way with
+    the last index for draws.
+
+    `parent` can be used to access the underlying array. Specifically,
+
+    ```julia
+    parent(PosteriorArray(A)) ≡ A
+    parent(posterior)[i..., j] == view_draw(posterior, j)[i...]
+    ```
+
+    Practically, it is usually an `Array`, but other types are accepted by the
+    constructor.
+
+    !!! note
+        The type name itself and the constructor are part of the API, but internals
+        and type parameters are not.
+    """
     function PosteriorArray(posterior::A) where {T,M,A<:AbstractArray{T,M}}
         @argcheck M ≥ 1 "Not enough dimensions."
         _check_axis(last(axes(posterior)), "Last axis")
         new{T,M-1,A}(posterior)
     end
 end
-
-"""
-$(SIGNATURES)
-
-Make a collection of posterior draws from an array, where each draw is a slice `[:, :,
-…, :, i]` of the argument for all indices `i` on the last axis, which needs to be
-1-based.
-"""
-posterior_last_axis(a::AbstractArray) = PosteriorArray(a)
 
 function Base.show(io::IO, p::PosteriorArray{T}) where T
     _print_posterior(io, p) do io, p
@@ -111,25 +126,37 @@ function each_index(p::PosteriorArray{T,N}) where {T,N}
     eachslice(p.posterior; dims = ntuple(identity, Val(N)), drop = true)
 end
 
+Base.parent(p::PosteriorArray) = p.posterior
+
 ####
 #### vectors without structure imposed
 ####
 
 struct PosteriorVector{T,V<:AbstractVector{T}} <: Posterior{T}
     posterior::V
+    @doc """
+    $(SIGNATURES)
+
+    Wrap a vector of posterior draws. The original vector can be accessed with `parent`.
+
+    !!! note
+        Whenever the draws are arrays of the same size, it is recommended to use
+        [`PosteriorArray`](@ref). In this case, `PosteriorVector(v)` is equivalent to
+        `PosteriorArray(stack(v))` for practical purposes.
+    """
     function PosteriorVector(v::V) where {T,V <: AbstractVector{T}}
         _check_axis(axes(v, 1), "Vector")
         new{T,V}(v)
     end
 end
 
-posterior_vector(v::AbstractVector) = PosteriorVector(v)
-
 number_of_draws(p::PosteriorVector) = length(p.posterior)
 
 copy_draw(p::PosteriorVector, i) = p.posterior[i]
 
 set_draw!(p::PosteriorVector, d, i) = p.posterior[i] = d
+
+Base.parent(p::PosteriorVector) = p.posterior
 
 ####
 #### mapping
@@ -226,7 +253,8 @@ $(SIGNATURES)
 
 Map posterior draws using `f`.
 
-If an argument is not a posterior, it is applied as is for each call.
+If an argument is not a posterior, it is applied as is for each call. Whenever possible,
+collect the result in a compact form (eg [`PosteriorArray`](@ref)).
 
 If no arguments are posteriors, `f(args...)` is returned, otherwise the result is a
 posterior.
@@ -249,7 +277,7 @@ end
 function _collect_posterior(::Union{Base.HasLength,Base.SizeUnknown,Base.HasShape{1}}, itr)
     v = collect(itr)
     v isa Vector || _not_vec_error()
-    p = posterior_vector(v)
+    p = PosteriorVector(v)
     if view_draw(p, 1) isa AbstractArray
         # NOTE collecting twice is inefficient; didn't bother to write code for that case
         map_posterior(identity, p)

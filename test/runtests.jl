@@ -1,11 +1,12 @@
-using PosteriorAnalysis: posterior_vector, set_draw!, copy_draw, view_draw,
-    posterior_last_axis, each_index, map_posterior, collect_posterior, number_of_draws
+using PosteriorAnalysis: PosteriorArray, PosteriorVector, set_draw!, copy_draw,
+    view_draw, each_index, map_posterior, collect_posterior, number_of_draws
+
 using PosteriorAnalysis
 using Test
 
 @testset "posterior vector basic operations" begin
     N = 10
-    p = posterior_vector(fill(NaN, N))
+    p = PosteriorVector(fill(NaN, N))
     for i in 1:N
         w = 1.0 .+ i
         set_draw!(p, w, i)
@@ -16,7 +17,7 @@ end
 @testset "posterior array basic operations" begin
     N = 10
     M = 5
-    p = posterior_last_axis(fill(NaN, M, N))
+    p = PosteriorArray(fill(NaN, M, N))
     v = Float64.(1:M)
     for i in 1:N
         w = v .+ i
@@ -36,8 +37,8 @@ end
     N = 4
     A = randn(3, N)
     B = randn(N)
-    p1 = posterior_last_axis(A)
-    p2 = posterior_vector(B)
+    p1 = PosteriorArray(A)
+    p2 = PosteriorVector(B)
     p12 = map_posterior((x, y) -> x .+ y, p1, p2)
     @test number_of_draws(p12) == N
     @test p12 isa PosteriorAnalysis.PosteriorArray
@@ -50,8 +51,8 @@ end
     N = 4
     A = rand(1:5, 3, N)
     B = Union{Int,Float64}[isodd(i) ? 1 : 2.0 for i in 1:N]
-    p1 = posterior_last_axis(A)
-    p2 = posterior_vector(B)
+    p1 = PosteriorArray(A)
+    p2 = PosteriorVector(B)
     p12 = map_posterior((x, y) -> x .+ y, p1, p2)
     @test number_of_draws(p12) == N
     @test p12 isa PosteriorAnalysis.PosteriorVector
@@ -65,7 +66,7 @@ end
 
     f1(i) = (1:3) .* i
     p1 = collect_posterior((f1(i) for i in 1:N))
-    @test p1 isa PosteriorAnalysis.PosteriorArray
+    @test p1 isa PosteriorArray
     for i in 1:N
         @test view_draw(p1, i) == f1(i)
     end
@@ -76,6 +77,14 @@ end
     for i in 1:N
         @test view_draw(p2, i) == f2(i)
     end
+end
+
+@testset "parent and stacking" begin
+    A = randn(4, 5, 6)
+    @test parent(PosteriorArray(A)) ≡ A
+    v = collect(eachslice(A; dims = 3))
+    @test parent(PosteriorVector(v)) ≡ v
+    @test parent(PosteriorArray(stack(v))) == A
 end
 
 using JET
