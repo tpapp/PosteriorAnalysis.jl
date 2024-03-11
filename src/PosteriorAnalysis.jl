@@ -349,9 +349,9 @@ function destructure_posterior(p::PosteriorArray{T}) where {N, T <: NTuple{N}}
     ntuple(i -> PosteriorArray(map(x -> x[i], posterior)), Val(N))
 end
 
-function destructure_posterior(p::PosteriorArray{T}) where {N, K, T <: NamedTuple{K,<:NTuple{N}}}
+function destructure_posterior(p::PosteriorArray{T}) where {K, T <: NamedTuple{K}}
     (; posterior) = p
-    NamedTuple{K}(ntuple(i -> PosteriorArray(map(x -> x[i], posterior)), Val(N)))
+    NamedTuple{K}(ntuple(i -> PosteriorArray(map(x -> x[i], posterior)), Val(fieldcount(T))))
 end
 
 end # module
