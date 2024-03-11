@@ -125,6 +125,17 @@ end
     @test dab.b == b
 end
 
+@testset "check number of draws" begin
+    x = randn(4)
+    Y = randn(4, 3)
+    y = PosteriorArray(Y)
+    f(x, y) = x .+ y
+    @test map_posterior(f, x, y) == PosteriorArray(x .+ Y)
+    @test map_posterior(f, y, x) == PosteriorArray(Y .+ x)
+    @test_throws ArgumentError map_posterior(f, PosteriorVector(randn(2)), y)
+    @test_throws ArgumentError map_posterior(f, PosteriorArray(randn(4, 2)), y)
+end
+
 using JET
 @testset "static analysis with JET.jl" begin
     @test isempty(JET.get_reports(report_package(PosteriorAnalysis, target_modules=(PosteriorAnalysis,))))

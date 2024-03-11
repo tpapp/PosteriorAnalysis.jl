@@ -203,8 +203,10 @@ In case of a mismatch, throw an error. Internal.
 function _common(f, x, xs...)
     N = f(x)
     N2 = _common(f, xs...)
-    if N ≡ nothing || N2 ≡ nothing || N ≡ N2
+    if N ≡ N2 || N2 ≡ nothing
         N
+    elseif N ≡ nothing
+        N2
     else
         throw(ArgumentError("Mismatching $(f) ($N, $N2)"))
     end
@@ -265,7 +267,8 @@ end
 function _map_posterior!(p, i, f, args...)
     N = number_of_draws(p)
     for j in i:N
-        r = f(map(p -> view_draw(p, j), args)...)
+        draws = map(p -> view_draw(p, j), args)
+        r = f(draws...)
         p′ = _save_or_widen!(p, r, j)
         if p ≢ p′
             return _map_posterior!(p′, j + 1, f, args...)
@@ -273,6 +276,15 @@ function _map_posterior!(p, i, f, args...)
     end
     p
 end
+
+"""
+$(SIGNATURES)
+
+The `number_of_draws(argument)` for posteriors, `nothing` for all other types. Internal
+helper function.
+"""
+_number_of_draws_or_nothing(p::Posterior) = number_of_draws(p)
+_number_of_draws_or_nothing(_) = nothing
 
 """
 $(SIGNATURES)
@@ -285,8 +297,8 @@ collect the result in a compact form (eg [`PosteriorArray`](@ref)).
 If no arguments are posteriors, `f(args...)` is returned, otherwise the result is a
 posterior.
 """
-function map_posterior(f, args...)
-    N = _common(x -> x isa Posterior ? number_of_draws(x) : nothing, args...)
+@noinline function map_posterior(f, args...)
+    N = _common(_number_of_draws_or_nothing, args...)
     N ≡ nothing && return f(args...)
     @argcheck N ≥ 1
     _map_posterior!(_NoForm(N), 1, f, args...)
