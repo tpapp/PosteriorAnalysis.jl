@@ -1,6 +1,6 @@
 using PosteriorAnalysis: PosteriorArray, PosteriorVector, set_draw!, copy_draw,
     view_draw, each_index, map_posterior, collect_posterior, number_of_draws, each_draw,
-    is_posterior, Elementwise
+    is_posterior, Elementwise, destructure_posterior
 
 using PosteriorAnalysis
 using Test
@@ -108,6 +108,21 @@ end
     @test c == A .+ B
     @test parent(C) == c
     @test C == C2
+end
+
+@testset "destructure" begin
+    A = randn(3, 4)
+    B = randn(3, 4)
+    a = PosteriorArray(A)
+    b = PosteriorArray(B)
+    ab = map_posterior(Elementwise(tuple), a, b)
+    (a2, b2) = destructure_posterior(ab)
+    @test a == a2
+    @test b == b2
+    nab = map_posterior(Elementwise((a, b) -> (; a, b)), a, b)
+    dab = destructure_posterior(nab)
+    @test dab.a == a
+    @test dab.b == b
 end
 
 using JET

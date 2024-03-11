@@ -6,7 +6,7 @@ module PosteriorAnalysis
 using Compat: @compat
 @compat public is_posterior, PosteriorArray, PosteriorVector, set_draw!, copy_draw,
    view_draw, each_index, map_posterior, collect_posterior, number_of_draws, each_draw,
-   Elementwise
+   Elementwise, destructure_posterior
 
 using ArgCheck: @argcheck
 using Base: OneTo
@@ -339,5 +339,19 @@ map_posterior(f::Elementwise, args...) = map_posterior((x...,) -> f.f.(x...), ar
 (==)(a::PosteriorVector, b::PosteriorVector) = a.posterior == b.posterior
 (==)(a::Posterior, b::Posterior) = each_draw(a) == each_draw(b)
 
+"""
+$(SIGNATURES)
+
+Destructure a `PosteriorArray` of `Tuple`s or `NamedTuple`s elementwise.
+"""
+function destructure_posterior(p::PosteriorArray{T}) where {N, T <: NTuple{N}}
+    (; posterior) = p
+    ntuple(i -> PosteriorArray(map(x -> x[i], posterior)), Val(N))
+end
+
+function destructure_posterior(p::PosteriorArray{T}) where {N, K, T <: NamedTuple{K,<:NTuple{N}}}
+    (; posterior) = p
+    NamedTuple{K}(ntuple(i -> PosteriorArray(map(x -> x[i], posterior)), Val(N)))
+end
 
 end # module
