@@ -5,10 +5,12 @@ module PosteriorAnalysis
 
 using Compat: @compat
 @compat public is_posterior, PosteriorArray, PosteriorVector, set_draw!, copy_draw,
-    view_draw, each_index, map_posterior, collect_posterior, number_of_draws, each_draw
+   view_draw, each_index, map_posterior, collect_posterior, number_of_draws, each_draw,
+   Elementwise, destructure_posterior
 
 using ArgCheck: @argcheck
 using Base: OneTo
+import Base: ==, show, parent
 using DocStringExtensions: SIGNATURES
 
 ####
@@ -50,7 +52,7 @@ function _print_posterior(f, io, p::Posterior{T}) where T
     print(io, " »")
 end
 
-function Base.show(io::IO, p::Posterior)
+function show(io::IO, p::Posterior)
     _print_posterior((_...) -> nothing, io, p)
 end
 
@@ -99,7 +101,7 @@ struct PosteriorArray{T,N,A<:AbstractArray} <: Posterior{Array{T,N}}
     end
 end
 
-function Base.show(io::IO, p::PosteriorArray{T}) where T
+function show(io::IO, p::PosteriorArray{T}) where T
     _print_posterior(io, p) do io, p
         (; posterior) = p
         (a..., b) = axes(posterior)
@@ -146,7 +148,7 @@ function each_index(p::PosteriorArray{T,N}) where {T,N}
     eachslice(p.posterior; dims = ntuple(identity, Val(N)), drop = true)
 end
 
-Base.parent(p::PosteriorArray) = p.posterior
+parent(p::PosteriorArray) = p.posterior
 
 ####
 #### vectors without structure imposed
@@ -178,31 +180,33 @@ copy_draw(p::PosteriorVector, i) = p.posterior[i]
 
 set_draw!(p::PosteriorVector, d, i) = p.posterior[i] = d
 
-Base.parent(p::PosteriorVector) = p.posterior
+parent(p::PosteriorVector) = p.posterior
 
 ####
 #### mapping
 ####
 
-_common_number_of_draws(p::Posterior) = number_of_draws(p)
-
-_common_number_of_draws(x) = nothing
-
-_common_number_of_draws(x1, xs...) = _common_number_of_draws(xs...)
+_common(f, x) = f(x)
 
 """
 $(SIGNATURES)
 
-Helper function to get the common number of draws, or `nothing` if none of the arguments
-is a posterior. In case of a mismatch, throw an error. Internal.
+Helper function to get the common `f` of something mapping from the `x`s.
+
+That is, if all of `map(f, xs)` is the same (with `≡`, that is returned).
+
+`nothing` is treated specially: it is ignored when comparing, and if all arguments yield
+nothing, that is returned.
+
+In case of a mismatch, throw an error. Internal.
 """
-function _common_number_of_draws(p::Posterior, xs...)
-    N = number_of_draws(p)
-    N2 = _common_number_of_draws(xs...)
-    if N2 ≡ nothing || N == N2
+function _common(f, x, xs...)
+    N = f(x)
+    N2 = _common(f, xs...)
+    if N ≡ nothing || N2 ≡ nothing || N ≡ N2
         N
     else
-        throw(ArgumentError("Mismatching number of draws ($N, $N2)"))
+        throw(ArgumentError("Mismatching $(f) ($N, $N2)"))
     end
 end
 
@@ -282,7 +286,7 @@ If no arguments are posteriors, `f(args...)` is returned, otherwise the result i
 posterior.
 """
 function map_posterior(f, args...)
-    N = _common_number_of_draws(args...)
+    N = _common(x -> x isa Posterior ? number_of_draws(x) : nothing, args...)
     N ≡ nothing && return f(args...)
     @argcheck N ≥ 1
     _map_posterior!(_NoForm(N), 1, f, args...)
@@ -309,5 +313,45 @@ function _collect_posterior(::Union{Base.HasLength,Base.SizeUnknown,Base.HasShap
 end
 
 _collect_posterior(::Union{Base.HasShape,Base.IsInfinite}, itr) = _not_vec_error()
+
+"""
+$(SIGNATURES)
+
+A wrapper equivalent to `(x...)->f(x...)`, which results in direct application in
+`map_posterior` when possible.
+"""
+struct Elementwise{F}
+    f::F
+end
+
+(f::Elementwise)(xs...) = map(f.f, xs...)
+
+function map_posterior(f::Elementwise, args::PosteriorArray...)
+    posteriors = map(x -> x.posterior, args)
+    @argcheck _common(size, posteriors...) ≢ nothing
+    PosteriorArray(map(f, posteriors...))
+end
+
+map_posterior(f::Elementwise, args...) = map_posterior((x...,) -> f.f.(x...), args...)
+
+# FIXME implement hashing, add tests for == too
+(==)(a::PosteriorArray, b::PosteriorArray) = a.posterior == b.posterior
+(==)(a::PosteriorVector, b::PosteriorVector) = a.posterior == b.posterior
+(==)(a::Posterior, b::Posterior) = each_draw(a) == each_draw(b)
+
+"""
+$(SIGNATURES)
+
+Destructure a `PosteriorArray` of `Tuple`s or `NamedTuple`s elementwise.
+"""
+function destructure_posterior(p::PosteriorArray{T}) where {N, T <: NTuple{N}}
+    (; posterior) = p
+    ntuple(i -> PosteriorArray(map(x -> x[i], posterior)), Val(N))
+end
+
+function destructure_posterior(p::PosteriorArray{T}) where {N, K, T <: NamedTuple{K,<:NTuple{N}}}
+    (; posterior) = p
+    NamedTuple{K}(ntuple(i -> PosteriorArray(map(x -> x[i], posterior)), Val(N)))
+end
 
 end # module

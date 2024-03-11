@@ -1,6 +1,6 @@
 using PosteriorAnalysis: PosteriorArray, PosteriorVector, set_draw!, copy_draw,
     view_draw, each_index, map_posterior, collect_posterior, number_of_draws, each_draw,
-    is_posterior
+    is_posterior, Elementwise, destructure_posterior
 
 using PosteriorAnalysis
 using Test
@@ -42,7 +42,7 @@ end
     p2 = PosteriorVector(B)
     p12 = map_posterior((x, y) -> x .+ y, p1, p2)
     @test number_of_draws(p12) == N
-    @test p12 isa PosteriorAnalysis.PosteriorArray
+    @test p12 isa PosteriorArray
     for i in 1:N
         @test copy_draw(p1, i) .+ copy_draw(p2, i) == copy_draw(p12, i)
     end
@@ -56,7 +56,7 @@ end
     p2 = PosteriorVector(B)
     p12 = map_posterior((x, y) -> x .+ y, p1, p2)
     @test number_of_draws(p12) == N
-    @test p12 isa PosteriorAnalysis.PosteriorVector
+    @test p12 isa PosteriorVector
     for i in 1:N
         @test copy_draw(p1, i) .+ copy_draw(p2, i) == copy_draw(p12, i)
     end
@@ -74,7 +74,7 @@ end
 
     f2(i) = isodd(i) ? i : f1(i)
     p2 = collect_posterior((f2(i) for i in 1:N))
-    @test p2 isa PosteriorAnalysis.PosteriorVector
+    @test p2 isa PosteriorVector
     for i in 1:N
         @test view_draw(p2, i) == f2(i)
     end
@@ -95,6 +95,34 @@ end
     @test each_draw(pV) == V
 
     @test !is_posterior("a fish")
+end
+
+@testset "elementwise" begin
+    A = randn(5, 4)
+    B = randn(5, 4)
+    a = PosteriorArray(A)
+    b = PosteriorArray(B)
+    C = map_posterior(Elementwise(+), a, b)
+    C2 = map_posterior(Elementwise(+), a, PosteriorVector(eachcol(B)))
+    c = map_posterior(Elementwise(+), A, B)
+    @test c == A .+ B
+    @test parent(C) == c
+    @test C == C2
+end
+
+@testset "destructure" begin
+    A = randn(3, 4)
+    B = randn(3, 4)
+    a = PosteriorArray(A)
+    b = PosteriorArray(B)
+    ab = map_posterior(Elementwise(tuple), a, b)
+    (a2, b2) = destructure_posterior(ab)
+    @test a == a2
+    @test b == b2
+    nab = map_posterior(Elementwise((a, b) -> (; a, b)), a, b)
+    dab = destructure_posterior(nab)
+    @test dab.a == a
+    @test dab.b == b
 end
 
 using JET
